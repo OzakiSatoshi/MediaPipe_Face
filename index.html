@@ -1,31 +1,49 @@
 <!DOCTYPE html>
-<html>
+<html lang="ja">
 <head>
   <meta charset="utf-8">
   <meta http-equiv="Cache-control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>Face Landmarker 0.1.0</title>
+  <title>Face Landmarker AR 0.1.1</title>
 
   <link href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css" rel="stylesheet">
   <script src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
   <!-- WASM用のスクリプトを追加 -->
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm/vision_wasm_internal.js"></script>
+
+  <style>
+    body, html {
+      margin: 0;
+      padding: 0;
+      overflow: hidden;
+      height: 100%;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+    }
+
+    #liveView {
+      width: 100vw;
+      height: 100vh;
+      position: relative;
+    }
+
+    video, canvas {
+      width: 100%;
+      height: 100%;
+      object-fit: cover;
+      position: absolute;
+      top: 0;
+      left: 0;
+    }
+  </style>
 </head>
 <body>
-  <h1>Face Landmark Detection with MediaPipe</h1>
-
-  <section id="demos">
-    <div id="liveView" class="videoView">
-      <div style="position: relative;">
-        <video id="webcam" autoplay playsinline style="position: absolute; width: 640px; height: 480px;"></video>
-        <canvas class="output_canvas" id="output_canvas" width="640" height="480" style="position: absolute; left: 0px; top: 0px;"></canvas>
-      </div>
-    </div>
-    <div class="blend-shapes">
-      <ul class="blend-shapes-list" id="video-blend-shapes"></ul>
-    </div>
-  </section>
+  <div id="liveView" class="videoView">
+    <video id="webcam" autoplay playsinline></video>
+    <canvas class="output_canvas" id="output_canvas"></canvas>
+  </div>
 
   <script type="module">
     import { FaceLandmarker, FilesetResolver } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest';
@@ -55,8 +73,7 @@
       // カメラの設定
       const constraints = {
         video: {
-          width: 640,
-          height: 480
+          facingMode: "user" // フロントカメラを使用
         }
       };
 
@@ -88,42 +105,20 @@
     }
 
     function displayResults(results) {
-      canvasCtx.save();
       canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
       if (results.faceLandmarks) {
         for (const landmarks of results.faceLandmarks) {
-          drawConnectors(canvasCtx, landmarks, FACEMESH_TESSELATION, {
-            color: "#C0C0C070",
-            lineWidth: 1
-          });
-          drawConnectors(canvasCtx, landmarks, FACEMESH_RIGHT_EYE, {
-            color: "#FF3030"
-          });
-          drawConnectors(canvasCtx, landmarks, FACEMESH_RIGHT_EYEBROW, {
-            color: "#FF3030"
-          });
-          drawConnectors(canvasCtx, landmarks, FACEMESH_RIGHT_IRIS, {
-            color: "#FF3030"
-          });
-          drawConnectors(canvasCtx, landmarks, FACEMESH_LEFT_EYE, {
-            color: "#30FF30"
-          });
-          drawConnectors(canvasCtx, landmarks, FACEMESH_LEFT_EYEBROW, {
-            color: "#30FF30"
-          });
-          drawConnectors(canvasCtx, landmarks, FACEMESH_LEFT_IRIS, {
-            color: "#30FF30"
-          });
-          drawConnectors(canvasCtx, landmarks, FACEMESH_FACE_OVAL, {
-            color: "#E0E0E0"
-          });
-          drawConnectors(canvasCtx, landmarks, FACEMESH_LIPS, {
-            color: "#E0E0E0"
-          });
+          const nose = landmarks[1]; // 鼻のランドマーク (index 1)
+          if (nose) {
+            // 鼻に球体を描画
+            canvasCtx.beginPath();
+            canvasCtx.arc(nose.x * canvasElement.width, nose.y * canvasElement.height, 10, 0, 2 * Math.PI);
+            canvasCtx.fillStyle = "red";
+            canvasCtx.fill();
+          }
         }
       }
-      canvasCtx.restore();
     }
 
     setupFaceLandmarker();
