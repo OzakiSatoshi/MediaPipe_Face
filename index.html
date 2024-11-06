@@ -28,7 +28,58 @@
   </section>
 
   <!-- 必要なJavaScriptライブラリ -->
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3"></script>
-  <script src="script.js"></script>
+  <script type="module">
+    import { FaceLandmarker, FilesetResolver } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3';
+
+    // FaceLandmarkerとビデオの設定
+    const videoElement = document.getElementById('webcam');
+    const canvasElement = document.getElementById('output_canvas');
+    const canvasCtx = canvasElement.getContext('2d');
+
+    async function setupFaceLandmarker() {
+      const vision = await FilesetResolver.forVisionTasks(
+        'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.10.3'
+      );
+
+      const faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
+        baseOptions: {
+          modelAssetPath: 'https://cdn.jsdelivr.net/npm/@mediapipe/face_landmark_model/face_landmark_model.task'
+        },
+        outputFaceBlendshapes: true,
+        numFaces: 1
+      });
+
+      // ビデオの設定
+      navigator.mediaDevices.getUserMedia({ video: true })
+        .then((stream) => {
+          videoElement.srcObject = stream;
+          videoElement.onloadedmetadata = () => {
+            videoElement.play();
+          };
+        });
+
+      // フレームごとに処理
+      videoElement.addEventListener('loadeddata', async () => {
+        while (true) {
+          await faceLandmarker.detectForVideo(videoElement, (results) => {
+            canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+            if (results.faceLandmarks) {
+              for (const landmarks of results.faceLandmarks) {
+                for (const landmark of landmarks) {
+                  canvasCtx.beginPath();
+                  canvasCtx.arc(landmark.x * canvasElement.width, landmark.y * canvasElement.height, 2, 0, 2 * Math.PI);
+                  canvasCtx.fill();
+                }
+              }
+            }
+          });
+          await new Promise((resolve) => setTimeout(resolve, 30)); // 30ms待機して次のフレームへ
+        }
+      });
+    }
+
+    setupFaceLandmarker();
+  </script>
 </body>
 </html>
+
