@@ -5,7 +5,7 @@
   <meta http-equiv="Cache-control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>Face Landmarker 0.1.15</title>
+  <title>Face Landmarker 0.1.16</title>
 
   <link href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css" rel="stylesheet">
   <script src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
@@ -77,30 +77,28 @@
     const loader = new THREE.GLTFLoader();
     loader.load('hat.glb', (gltf) => {
       hatModel = gltf.scene;
-      hatModel.scale.set(0.2, 0.2, 0.2); // サイズを調整
+      hatModel.scale.set(0.4, 0.4, 0.4); // サイズを倍に設定
       scene.add(hatModel);
     });
 
     // 顔の傾きを計算して帽子の回転に適用
     function calculateFaceRotation(landmarks) {
-      const leftEye = landmarks[33]; // 左目のランドマーク
-      const rightEye = landmarks[263]; // 右目のランドマーク
-      const leftEar = landmarks[234]; // 左耳
-      const rightEar = landmarks[454]; // 右耳
+      const leftEye = landmarks[33];
+      const rightEye = landmarks[263];
+      const leftEar = landmarks[234];
+      const rightEar = landmarks[454];
 
       const dxEye = rightEye.x - leftEye.x;
       const dyEye = rightEye.y - leftEye.y;
       const dxEar = rightEar.x - leftEar.x;
       const dyEar = rightEar.y - leftEar.y;
 
-      // 傾きを計算（左右の目と耳を使用）
-      const yaw = Math.atan2(dyEar, dxEar); // Y軸回転（左右の傾き）
-      const pitch = Math.atan2(dyEye, dxEye); // X軸回転（上下の傾き）
+      const yaw = Math.atan2(dyEar, dxEar);
+      const pitch = Math.atan2(dyEye, dxEye);
 
       return { yaw, pitch };
     }
 
-    // オクルージョンメッシュを作成
     function createFaceOcclusionMesh(landmarks) {
       const geometry = new THREE.BufferGeometry();
       const vertices = new Float32Array(landmarks.length * 3);
@@ -193,7 +191,7 @@
           if (forehead) {
             const x = (forehead.x - 0.5) * 2;
             const y = -(forehead.y - 0.5) * 2;
-            const z = -0.9; // z座標をさらに奥に調整
+            const z = -1.5; // z座標をさらに奥に調整
 
             hatModel.position.set(x, y + 0.1, z); // y座標を調整して頭に近づける
 
