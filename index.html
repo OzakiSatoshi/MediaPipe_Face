@@ -5,7 +5,7 @@
   <meta http-equiv="Cache-control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>Face Landmarker 0.1.10</title>
+  <title>Face Landmarker 0.1.15</title>
 
   <link href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css" rel="stylesheet">
   <script src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
@@ -81,6 +81,25 @@
       scene.add(hatModel);
     });
 
+    // 顔の傾きを計算して帽子の回転に適用
+    function calculateFaceRotation(landmarks) {
+      const leftEye = landmarks[33]; // 左目のランドマーク
+      const rightEye = landmarks[263]; // 右目のランドマーク
+      const leftEar = landmarks[234]; // 左耳
+      const rightEar = landmarks[454]; // 右耳
+
+      const dxEye = rightEye.x - leftEye.x;
+      const dyEye = rightEye.y - leftEye.y;
+      const dxEar = rightEar.x - leftEar.x;
+      const dyEar = rightEar.y - leftEar.y;
+
+      // 傾きを計算（左右の目と耳を使用）
+      const yaw = Math.atan2(dyEar, dxEar); // Y軸回転（左右の傾き）
+      const pitch = Math.atan2(dyEye, dxEye); // X軸回転（上下の傾き）
+
+      return { yaw, pitch };
+    }
+
     // オクルージョンメッシュを作成
     function createFaceOcclusionMesh(landmarks) {
       const geometry = new THREE.BufferGeometry();
@@ -105,7 +124,6 @@
       return mesh;
     }
 
-    // フレームごとにオクルージョンメッシュの位置と形状を更新
     function updateOcclusionMesh(mesh, landmarks) {
       const positions = mesh.geometry.attributes.position.array;
       for (let i = 0; i < landmarks.length; i++) {
@@ -133,7 +151,6 @@
         numFaces: 5 // 最大5つの顔を認識
       });
 
-      // カメラの設定
       const constraints = {
         video: {
           facingMode: "user"
@@ -179,16 +196,16 @@
             const z = -0.9; // z座標をさらに奥に調整
 
             hatModel.position.set(x, y + 0.1, z); // y座標を調整して頭に近づける
-            hatModel.rotation.set(0, 0, 0); // モデルの回転を調整
+
+            // 顔の傾きを計算し、帽子モデルに適用
+            const { yaw, pitch } = calculateFaceRotation(landmarks);
+            hatModel.rotation.set(pitch, yaw, 0);
           }
 
-          // 初回のみオクルージョンメッシュを作成
           if (!occlusionMesh) {
             occlusionMesh = createFaceOcclusionMesh(landmarks);
             scene.add(occlusionMesh);
           }
-
-          // オクルージョンメッシュを更新
           updateOcclusionMesh(occlusionMesh, landmarks);
         });
 
