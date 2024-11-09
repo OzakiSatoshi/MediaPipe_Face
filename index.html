@@ -5,7 +5,7 @@
   <meta http-equiv="Cache-control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>Face Landmarker 0.1.7</title>
+  <title>Face Landmarker 0.1.8</title>
 
   <link href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css" rel="stylesheet">
   <script src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
@@ -139,7 +139,7 @@
           if (forehead) {
             const x = (forehead.x - 0.5) * 2;
             const y = -(forehead.y - 0.5) * 2;
-            const z = -0.5;
+            const z = -0.7; // z座標を少し奥に調整
 
             hatModel.position.set(x, y + 0.1, z); // y座標を調整して頭に近づける
             hatModel.rotation.set(0, 0, 0); // モデルの回転を調整
