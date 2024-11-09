@@ -5,7 +5,7 @@
   <meta http-equiv="Cache-control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>Face Landmarker 0.1.9</title>
+  <title>Face Landmarker 0.1.10</title>
 
   <link href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css" rel="stylesheet">
   <script src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
@@ -81,6 +81,43 @@
       scene.add(hatModel);
     });
 
+    // オクルージョンメッシュを作成
+    function createFaceOcclusionMesh(landmarks) {
+      const geometry = new THREE.BufferGeometry();
+      const vertices = new Float32Array(landmarks.length * 3);
+
+      for (let i = 0; i < landmarks.length; i++) {
+          vertices[i * 3] = (landmarks[i].x - 0.5) * 2;
+          vertices[i * 3 + 1] = -(landmarks[i].y - 0.5) * 2;
+          vertices[i * 3 + 2] = landmarks[i].z * 0.1;
+      }
+      
+      geometry.setAttribute('position', new THREE.BufferAttribute(vertices, 3));
+      
+      const material = new THREE.MeshBasicMaterial({
+          color: 0x000000,
+          opacity: 0.5,
+          transparent: true,
+          depthTest: true
+      });
+      
+      const mesh = new THREE.Mesh(geometry, material);
+      return mesh;
+    }
+
+    // フレームごとにオクルージョンメッシュの位置と形状を更新
+    function updateOcclusionMesh(mesh, landmarks) {
+      const positions = mesh.geometry.attributes.position.array;
+      for (let i = 0; i < landmarks.length; i++) {
+          positions[i * 3] = (landmarks[i].x - 0.5) * 2;
+          positions[i * 3 + 1] = -(landmarks[i].y - 0.5) * 2;
+          positions[i * 3 + 2] = landmarks[i].z * 0.1;
+      }
+      mesh.geometry.attributes.position.needsUpdate = true;
+    }
+
+    let occlusionMesh;
+
     async function setupFaceLandmarker() {
       const vision = await FilesetResolver.forVisionTasks(
         "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
@@ -144,6 +181,15 @@
             hatModel.position.set(x, y + 0.1, z); // y座標を調整して頭に近づける
             hatModel.rotation.set(0, 0, 0); // モデルの回転を調整
           }
+
+          // 初回のみオクルージョンメッシュを作成
+          if (!occlusionMesh) {
+            occlusionMesh = createFaceOcclusionMesh(landmarks);
+            scene.add(occlusionMesh);
+          }
+
+          // オクルージョンメッシュを更新
+          updateOcclusionMesh(occlusionMesh, landmarks);
         });
 
         renderer.render(scene, camera);
