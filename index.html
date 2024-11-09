@@ -5,11 +5,15 @@
   <meta http-equiv="Cache-control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>Face Landmarker 0.1.12</title>
+  <title>Face Landmarker 0.1.10</title>
 
   <link href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css" rel="stylesheet">
+  <script src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
+  <!-- Three.jsの読み込み -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- GLTFLoaderの読み込み -->
   <script src="https://cdn.jsdelivr.net/npm/three/examples/js/loaders/GLTFLoader.js"></script>
+  <!-- MediaPipe Vision用のWASMスクリプト -->
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm/vision_wasm_internal.js"></script>
 
   <style>
@@ -57,7 +61,7 @@
 
     // Three.jsのセットアップ
     const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(50, window.innerWidth / window.innerHeight, 0.1, 1000); // FOV調整
+    const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.domElement.style.position = "absolute";
@@ -74,10 +78,10 @@
     loader.load('hat.glb', (gltf) => {
       hatModel = gltf.scene;
       hatModel.scale.set(0.2, 0.2, 0.2); // サイズを調整
-      hatModel.rotation.set(0, Math.PI, 0); // 初期回転を設定
       scene.add(hatModel);
     });
 
+    // オクルージョンメッシュを作成
     function createFaceOcclusionMesh(landmarks) {
       const geometry = new THREE.BufferGeometry();
       const vertices = new Float32Array(landmarks.length * 3);
@@ -101,6 +105,7 @@
       return mesh;
     }
 
+    // フレームごとにオクルージョンメッシュの位置と形状を更新
     function updateOcclusionMesh(mesh, landmarks) {
       const positions = mesh.geometry.attributes.position.array;
       for (let i = 0; i < landmarks.length; i++) {
@@ -109,19 +114,6 @@
           positions[i * 3 + 2] = landmarks[i].z * 0.1;
       }
       mesh.geometry.attributes.position.needsUpdate = true;
-    }
-
-    function adjustHatPosition(landmarks) {
-        const forehead = landmarks[10];
-        const chin = landmarks[152];
-        const faceTilt = Math.atan2(forehead.y - chin.y, forehead.x - chin.x);
-
-        hatModel.position.set(
-            (forehead.x - 0.5) * 2,
-            -(forehead.y - 0.5) * 2 + 0.1,
-            -0.9 - Math.abs(faceTilt) * 0.5
-        );
-        hatModel.rotation.set(faceTilt, Math.PI, 0); // 傾きに合わせた回転を調整
     }
 
     let occlusionMesh;
@@ -141,6 +133,7 @@
         numFaces: 5 // 最大5つの顔を認識
       });
 
+      // カメラの設定
       const constraints = {
         video: {
           facingMode: "user"
@@ -179,13 +172,23 @@
 
       if (results.faceLandmarks && hatModel) {
         results.faceLandmarks.forEach((landmarks) => {
-          adjustHatPosition(landmarks);
+          const forehead = landmarks[10]; // 額のランドマーク (例として index 10)
+          if (forehead) {
+            const x = (forehead.x - 0.5) * 2;
+            const y = -(forehead.y - 0.5) * 2;
+            const z = -0.9; // z座標をさらに奥に調整
 
+            hatModel.position.set(x, y + 0.1, z); // y座標を調整して頭に近づける
+            hatModel.rotation.set(0, 0, 0); // モデルの回転を調整
+          }
+
+          // 初回のみオクルージョンメッシュを作成
           if (!occlusionMesh) {
             occlusionMesh = createFaceOcclusionMesh(landmarks);
             scene.add(occlusionMesh);
           }
 
+          // オクルージョンメッシュを更新
           updateOcclusionMesh(occlusionMesh, landmarks);
         });
 
