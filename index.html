@@ -73,12 +73,12 @@
     const light = new THREE.AmbientLight(0xffffff, 1);
     scene.add(light);
 
-    let hatModel;
+    let ozakiModel;
     const loader = new THREE.GLTFLoader();
-    loader.load('hat.glb', (gltf) => {
-      hatModel = gltf.scene;
-      hatModel.scale.set(0.2, 0.2, 0.2); // サイズを調整
-      scene.add(hatModel);
+    loader.load('ozaki10000s_ForNamecard.glb', (gltf) => {
+      ozakiModel = gltf.scene;
+      ozakiModel.scale.set(0.2, 0.2, 0.2); // サイズを調整
+      scene.add(ozakiModel);
     });
 
     async function setupFaceLandmarker() {
@@ -133,7 +133,7 @@
     function displayResults(results) {
       canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
 
-      if (results.faceLandmarks && hatModel) {
+      if (results.faceLandmarks && ozakiModel) {
         results.faceLandmarks.forEach((landmarks) => {
           const forehead = landmarks[10]; // 額のランドマーク (例として index 10)
           if (forehead) {
@@ -141,8 +141,8 @@
             const y = -(forehead.y - 0.5) * 2;
             const z = -0.5;
 
-            hatModel.position.set(x, y + 0.4, z); // y座標をさらに上に調整して額の上に配置
-            hatModel.rotation.set(0, 0, 0); // モデルの回転を調整
+            ozakiModel.position.set(x, y + 0.4, z); // y座標をさらに上に調整して額の上に配置
+            ozakiModel.rotation.set(0, 0, 0); // モデルの回転を調整
           }
         });
 
