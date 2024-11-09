@@ -5,7 +5,7 @@
   <meta http-equiv="Cache-control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>Face Landmarker 0.1.16</title>
+  <title>Face Landmarker 0.1.17</title>
 
   <link href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css" rel="stylesheet">
   <script src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
@@ -85,18 +85,16 @@
     function calculateFaceRotation(landmarks) {
       const leftEye = landmarks[33];
       const rightEye = landmarks[263];
-      const leftEar = landmarks[234];
-      const rightEar = landmarks[454];
+      const nose = landmarks[1];
 
       const dxEye = rightEye.x - leftEye.x;
       const dyEye = rightEye.y - leftEye.y;
-      const dxEar = rightEar.x - leftEar.x;
-      const dyEar = rightEar.y - leftEar.y;
 
-      const yaw = Math.atan2(dyEar, dxEar);
-      const pitch = Math.atan2(dyEye, dxEye);
+      const yaw = Math.atan2(dyEye, dxEye);
+      const pitch = Math.atan2(nose.z, dxEye);
+      const roll = Math.atan2(dyEye, dxEye); // 簡易的にrollを計算
 
-      return { yaw, pitch };
+      return { yaw, pitch, roll };
     }
 
     function createFaceOcclusionMesh(landmarks) {
@@ -196,8 +194,8 @@
             hatModel.position.set(x, y + 0.1, z); // y座標を調整して頭に近づける
 
             // 顔の傾きを計算し、帽子モデルに適用
-            const { yaw, pitch } = calculateFaceRotation(landmarks);
-            hatModel.rotation.set(pitch, yaw, 0);
+            const { yaw, pitch, roll } = calculateFaceRotation(landmarks);
+            hatModel.rotation.set(pitch, yaw, roll);
           }
 
           if (!occlusionMesh) {
