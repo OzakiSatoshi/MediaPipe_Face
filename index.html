@@ -91,7 +91,7 @@
       const dyEye = rightEye.y - leftEye.y;
 
       const yaw = -Math.atan2(dyEye, dxEye); // 左右の傾きを反転
-      const pitch = Math.atan2(nose.z, dxEye);
+      const pitch = Math.atan2(nose.z, dxEye) * 0.1;
       const roll = -Math.atan2(dyEye, dxEye); // Rollの反転
 
       return { yaw, pitch, roll };
@@ -191,7 +191,7 @@
             const y = -(forehead.y - 0.5) * 2;
             const z = -1.5 + forehead.z * 0.1; // z座標を奥に調整しつつ、深度も加味
 
-            hatModel.position.set(x, y + 0.3, z); // y座標をさらに上げて頭にしっかり配置
+            hatModel.position.set(x, y + 0.01, z); // y座標をさらに上げて頭にしっかり配置
 
             // 顔の傾きを計算し、帽子モデルに適用
             const { yaw, pitch, roll } = calculateFaceRotation(landmarks);
