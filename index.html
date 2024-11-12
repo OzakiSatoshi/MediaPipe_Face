@@ -5,7 +5,7 @@
   <meta http-equiv="Cache-control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>Face Landmarker 0.1.21</title>
+  <title>Face Landmarker 0.1.22</title>
 
   <link href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css" rel="stylesheet">
   <script src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
@@ -82,7 +82,6 @@
       scene.add(hatModel);
     });
 
-    // 顔の傾きを計算して帽子の回転に適用
     function calculateFaceRotation(landmarks) {
       const leftEye = landmarks[33];
       const rightEye = landmarks[263];
@@ -91,9 +90,9 @@
       const dxEye = rightEye.x - leftEye.x;
       const dyEye = rightEye.y - leftEye.y;
 
-      const yaw = -Math.atan2(dyEye, dxEye); // 左右の傾きを反転
+      const yaw = -Math.atan2(dyEye, dxEye); 
       const pitch = Math.atan2(nose.z, dxEye);
-      const roll = Math.atan2(dyEye, dxEye); // Rollの正確な補正
+      const roll = Math.atan2(dyEye, dxEye);
 
       return { yaw, pitch, roll };
     }
@@ -110,7 +109,7 @@
         },
         outputFaceBlendshapes: true,
         runningMode: runningMode,
-        numFaces: 5 // 最大5つの顔を認識
+        numFaces: 5
       });
 
       const constraints = {
@@ -151,15 +150,14 @@
 
       if (results.faceLandmarks && hatModel) {
         results.faceLandmarks.forEach((landmarks) => {
-          const forehead = landmarks[10]; // 額のランドマーク
+          const forehead = landmarks[10];
           if (forehead) {
             const x = (forehead.x - 0.5) * 2;
-            const y = -(forehead.y - 0.5) * 2 + 0.3; // 頭部の高さに合わせて調整
+            const y = -(forehead.y - 0.5) * 2 + 0.3; // 高さ調整
             const z = -1.5;
 
             hatModel.position.set(x, y, z);
 
-            // 顔の傾きを計算し、帽子モデルに適用
             const { yaw, pitch, roll } = calculateFaceRotation(landmarks);
             hatModel.rotation.set(pitch, yaw, roll);
           }
