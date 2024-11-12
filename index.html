@@ -5,7 +5,7 @@
   <meta http-equiv="Cache-control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>Face Landmarker 0.1.19</title>
+  <title>Face Landmarker 0.1.20</title>
 
   <link href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css" rel="stylesheet">
   <script src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
@@ -91,8 +91,8 @@
       const dyEye = rightEye.y - leftEye.y;
 
       const yaw = -Math.atan2(dyEye, dxEye); // 左右の傾きを反転
-      const pitch = Math.atan2(nose.z, dxEye);
-      const roll = -Math.atan2(dyEye, dxEye); // Rollの反転
+      const pitch = -Math.atan2(nose.y - (leftEye.y + rightEye.y) / 2, nose.z); // ピッチを頭の中心から計算
+      const roll = Math.atan2(dyEye, dxEye); // Rollの反転を除去
 
       return { yaw, pitch, roll };
     }
@@ -185,13 +185,16 @@
 
       if (results.faceLandmarks && hatModel) {
         results.faceLandmarks.forEach((landmarks) => {
-          const forehead = landmarks[10]; // 額のランドマーク (例として index 10)
-          if (forehead) {
-            const x = (forehead.x - 0.5) * 2;
-            const y = -(forehead.y - 0.5) * 2;
-            const z = -1.5 + forehead.z * 0.1; // z座標を奥に調整しつつ、深度も加味
+          const forehead = landmarks[10]; // 額のランドマーク
+          const nose = landmarks[1]; // 顔の中心
 
-            hatModel.position.set(x, y + 0.3, z); // y座標をさらに上げて頭にしっかり配置
+          if (forehead) {
+            // 顔の中心に基づいて帽子の位置を調整
+            const x = (forehead.x - 0.5) * 2;
+            const y = -(forehead.y - 0.5) * 2 + 0.3; // y座標をさらに上に調整
+            const z = -1.5;
+
+            hatModel.position.set(x, y, z);
 
             // 顔の傾きを計算し、帽子モデルに適用
             const { yaw, pitch, roll } = calculateFaceRotation(landmarks);
