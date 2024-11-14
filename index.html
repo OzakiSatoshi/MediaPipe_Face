@@ -5,7 +5,7 @@
   <meta http-equiv="Cache-control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>Face Landmarker 0.1.27</title>
+  <title>Face Landmarker 0.1.28</title>
 
   <link href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css" rel="stylesheet">
   <script src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
@@ -103,6 +103,23 @@
     // 顔ごとにランダムなモデルを選択し保持
     const faceModels = {}; // キーとして顔のインデックスを使用し、モデルを保持
 
+    // 顔の傾きを計算する関数
+    function calculateFaceRotation(landmarks) {
+      const leftEye = landmarks[33];
+      const rightEye = landmarks[263];
+      const nose = landmarks[1];
+
+      const dxEye = rightEye.x - leftEye.x;
+      const dyEye = rightEye.y - leftEye.y;
+      const dzEye = rightEye.z - leftEye.z;
+
+      const yaw = -Math.atan2(dyEye, dxEye); // 左右の傾き
+      const pitch = Math.atan2(dzEye, dxEye); // 奥行きの傾き
+      const roll = -Math.atan2(dyEye, dxEye); // Rollの反転
+
+      return { yaw, pitch, roll };
+    }
+
     async function setupFaceLandmarker() {
       const vision = await FilesetResolver.forVisionTasks(
         "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
@@ -173,8 +190,10 @@
             const y = -(forehead.y - 0.5) * 2 + params.positionOffset.y;
             const z = params.positionOffset.z + forehead.z * 0.1;
 
-            model.position.set(x, y, z); // モデルの位置設定
-            model.rotation.set(params.rotationOffset.x, params.rotationOffset.y, params.rotationOffset.z); // モデルの回転設定
+            // 顔の傾きを計算して回転を適用
+            const { yaw, pitch, roll } = calculateFaceRotation(landmarks);
+            model.position.set(x, y, z);
+            model.rotation.set(pitch + params.rotationOffset.x, yaw + params.rotationOffset.y, roll + params.rotationOffset.z);
           }
         });
 
