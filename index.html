@@ -5,15 +5,12 @@
   <meta http-equiv="Cache-control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>Face Landmarker 0.1.29</title>
+  <title>Face Landmarker 0.1.30</title>
 
   <link href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css" rel="stylesheet">
   <script src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
-  <!-- Three.jsの読み込み -->
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <!-- GLTFLoaderの読み込み -->
   <script src="https://cdn.jsdelivr.net/npm/three/examples/js/loaders/GLTFLoader.js"></script>
-  <!-- MediaPipe Vision用のWASMスクリプト -->
   <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm/vision_wasm_internal.js"></script>
 
   <style>
@@ -47,6 +44,9 @@
   <div id="liveView" class="videoView">
     <video id="webcam" autoplay playsinline></video>
     <canvas class="output_canvas" id="output_canvas"></canvas>
+    <!-- モデルの位置と回転を設定するHTML属性 -->
+    <div id="ar-parameters" data-hat-position="0,0.3,-1.5" data-hat-rotation="0,0,0" 
+         data-tonakai-position="0,0.2,-1.5" data-tonakai-rotation="0,0,0"></div>
   </div>
 
   <script type="module">
@@ -54,74 +54,49 @@
 
     const videoElement = document.getElementById('webcam');
     const canvasElement = document.getElementById('output_canvas');
+    const arParameters = document.getElementById('ar-parameters');
     const canvasCtx = canvasElement.getContext('2d');
     let faceLandmarker;
-    let runningMode = "VIDEO";
-    let lastVideoTime = -1;
 
-    // Three.jsのセットアップ
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
     const renderer = new THREE.WebGLRenderer({ alpha: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.domElement.style.position = "absolute";
-    renderer.domElement.style.top = "0";
-    renderer.domElement.style.left = "0";
     document.body.appendChild(renderer.domElement);
 
-    // 照明の設定
     const light = new THREE.AmbientLight(0xffffff, 1);
     scene.add(light);
 
-    // モデルのパラメータ設定
-    const hatParams = {
-      scale: 0.4,  // hat.glbのスケール
-      positionOffset: { x: 0, y: 0.3, z: -1.5 },  // hat.glbの位置オフセット
-      rotationOffset: { x: 0, y: 0, z: 0 }  // hat.glbの回転オフセット（ラジアン）
-    };
-
-    const tonakaiParams = {
-      scale: 0.5,  // tonakai.glbのスケール
-      positionOffset: { x: 0, y: 0.2, z: -1.5 },  // tonakai.glbの位置オフセット
-      rotationOffset: { x: 0, y: 0, z: 0 }  // tonakai.glbの回転オフセット（ラジアン）
-    };
-
-    // GLBモデルの読み込み
-    const loader = new THREE.GLTFLoader();
     let hatModel, tonakaiModel;
 
-    loader.load('hat.glb', (gltf) => {
-      hatModel = gltf.scene;
-      hatModel.scale.set(hatParams.scale, hatParams.scale, hatParams.scale); // hat.glbのスケール設定
+    // GLTFLoaderを使用してモデルをロード
+    const loader = new THREE.GLTFLoader();
+    loader.load('hat.glb', (gltf) => { hatModel = gltf.scene; scene.add(hatModel); });
+    loader.load('tonakai.glb', (gltf) => { tonakaiModel = gltf.scene; scene.add(tonakaiModel); });
+
+    // HTML属性の変化を監視してモデルの位置と回転を更新
+    const observer = new MutationObserver(() => {
+      updateModelTransform(hatModel, 'hat');
+      updateModelTransform(tonakaiModel, 'tonakai');
     });
 
-    loader.load('tonakai.glb', (gltf) => {
-      tonakaiModel = gltf.scene;
-      tonakaiModel.scale.set(tonakaiParams.scale, tonakaiParams.scale, tonakaiParams.scale); // tonakai.glbのスケール設定
-    });
+    observer.observe(arParameters, { attributes: true });
 
-    // 顔ごとにランダムなモデルを選択し保持
-    const faceModels = {}; // キーとして顔のインデックスを使用し、モデルを保持
+    // モデルの位置と回転を更新する関数
+    function updateModelTransform(model, type) {
+      if (!model) return;
+      const positionAttr = arParameters.getAttribute(`data-${type}-position`);
+      const rotationAttr = arParameters.getAttribute(`data-${type}-rotation`);
 
-    // 顔の傾きを計算する関数
-    function calculateFaceRotation(landmarks) {
-      const leftEye = landmarks[33];
-      const rightEye = landmarks[263];
-      const nose = landmarks[1];
+      if (positionAttr) {
+        const [x, y, z] = positionAttr.split(',').map(Number);
+        model.position.set(x, y, z);
+      }
 
-      const dxEye = rightEye.x - leftEye.x;
-      const dyEye = rightEye.y - leftEye.y;
-      const dzEye = rightEye.z - leftEye.z;
-
-      const yaw = -Math.atan2(dyEye, dxEye); // 左右の傾き
-      const pitch = Math.atan2(dzEye, dxEye); // 奥行きの傾き
-      const roll = -Math.atan2(dyEye, dxEye); // Rollの反転
-
-      return { yaw, pitch, roll };
-    }
-
-    function applyRotationMatrix(object, rotation) {
-      object.rotation.set(rotation.pitch, rotation.yaw, rotation.roll);
+      if (rotationAttr) {
+        const [rx, ry, rz] = rotationAttr.split(',').map(Number);
+        model.rotation.set(rx, ry, rz);
+      }
     }
 
     async function setupFaceLandmarker() {
@@ -135,74 +110,35 @@
           delegate: "GPU"
         },
         outputFaceBlendshapes: true,
-        runningMode: runningMode,
-        numFaces: 5 // 最大5つの顔を認識
+        runningMode: "VIDEO",
+        numFaces: 5
       });
 
-      const constraints = {
-        video: {
-          facingMode: "user"
-        }
-      };
-
-      navigator.mediaDevices.getUserMedia(constraints)
+      navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
         .then((stream) => {
           videoElement.srcObject = stream;
           videoElement.addEventListener("loadeddata", predictWebcam);
         })
-        .catch((err) => {
-          console.error("カメラの取得に失敗しました:", err);
-        });
+        .catch((err) => console.error("カメラ取得エラー:", err));
     }
 
-    let lastVideoTimestamp = 0;
     async function predictWebcam() {
-      if (runningMode === "IMAGE") {
-        runningMode = "VIDEO";
-        await faceLandmarker.setOptions({ runningMode: "VIDEO" });
+      if (faceLandmarker && videoElement.readyState >= 2) {
+        const results = await faceLandmarker.detectForVideo(videoElement, performance.now());
+        updateModels(results);
       }
-      let startTimeMs = performance.now();
-
-      if (lastVideoTime !== videoElement.currentTime) {
-        lastVideoTime = videoElement.currentTime;
-        const results = await faceLandmarker.detectForVideo(videoElement, startTimeMs);
-        displayResults(results);
-      }
-
-      window.requestAnimationFrame(predictWebcam);
+      requestAnimationFrame(predictWebcam);
     }
 
-    function displayResults(results) {
-      canvasCtx.clearRect(0, 0, canvasElement.width, canvasElement.height);
+    function updateModels(results) {
+      if (!results.faceLandmarks) return;
 
-      if (results.faceLandmarks) {
-        results.faceLandmarks.forEach((landmarks, index) => {
-          const forehead = landmarks[10]; // 額のランドマーク
-          if (forehead) {
-            // 新しい顔が検出された場合、ランダムにモデルを割り当てる
-            if (!faceModels[index]) {
-              const modelChoice = Math.random() < 0.5 ? 'hat' : 'tonakai';
-              faceModels[index] = {
-                model: modelChoice === 'hat' ? hatModel.clone() : tonakaiModel.clone(),
-                params: modelChoice === 'hat' ? hatParams : tonakaiParams
-              };
-              scene.add(faceModels[index].model);
-            }
+      results.faceLandmarks.forEach((landmarks, index) => {
+        if (index === 0 && hatModel) updateModelTransform(hatModel, 'hat');
+        if (index === 1 && tonakaiModel) updateModelTransform(tonakaiModel, 'tonakai');
+      });
 
-            const { model, params } = faceModels[index];
-            const x = (forehead.x - 0.5) * 2 + params.positionOffset.x;
-            const y = -(forehead.y - 0.5) * 2 + params.positionOffset.y;
-            const z = params.positionOffset.z + forehead.z * 0.1;
-
-            // 顔の傾きを計算して回転を適用
-            const { yaw, pitch, roll } = calculateFaceRotation(landmarks);
-            model.position.set(x, y, z);
-            applyRotationMatrix(model, { pitch, yaw, roll }); // モデルに回転行列を適用
-          }
-        });
-
-        renderer.render(scene, camera);
-      }
+      renderer.render(scene, camera);
     }
 
     setupFaceLandmarker();
