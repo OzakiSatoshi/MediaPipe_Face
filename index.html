@@ -5,7 +5,7 @@
   <meta http-equiv="Cache-control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>Face Landmarker 0.1.37</title>
+  <title>Face Landmarker 0.1.37b</title>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three/examples/js/loaders/GLTFLoader.js"></script>
@@ -56,35 +56,35 @@
     const light = new THREE.AmbientLight(0xffffff, 1);
     scene.add(light);
 
-    // モデルのパラメータ設定（位置と傾きを調整する設定セクション）
-    const hatParams = {
-      scale: 0.4,  // hat.glbのスケール
-      positionOffset: { x: 0, y: 0.3, z: -1.5 },  // hat.glbの位置オフセット
-    };
-
-    const tonakaiParams = {
-      scale: 0.5,  // tonakai.glbのスケール
-      positionOffset: { x: 0, y: 0.2, z: -1.4 },  // tonakai.glbの位置オフセット
-    };
-
-    // GLBモデルの読み込み
     const loader = new THREE.GLTFLoader();
     let hatModel, tonakaiModel;
 
-    loader.load('hat.glb', (gltf) => {
-      hatModel = gltf.scene;
-      hatModel.scale.set(hatParams.scale, hatParams.scale, hatParams.scale);
-    });
+    const hatParams = { scale: 0.4, positionOffset: { x: 0, y: 0.3, z: -1.5 } };
+    const tonakaiParams = { scale: 0.5, positionOffset: { x: 0, y: 0.2, z: -1.4 } };
 
-    loader.load('tonakai.glb', (gltf) => {
-      tonakaiModel = gltf.scene;
-      tonakaiModel.scale.set(tonakaiParams.scale, tonakaiParams.scale, tonakaiParams.scale);
-    });
-
-    // 顔ごとにランダムなモデルを選択し保持
+    let faceLandmarker;
     const faceModels = {}; // 各顔のモデルを保持
 
-    // 顔の傾きを計算する関数
+    // モデルの読み込み
+    const loadModels = () => {
+      return Promise.all([
+        new Promise((resolve) => {
+          loader.load('hat.glb', (gltf) => {
+            hatModel = gltf.scene;
+            hatModel.scale.set(hatParams.scale, hatParams.scale, hatParams.scale);
+            resolve();
+          });
+        }),
+        new Promise((resolve) => {
+          loader.load('tonakai.glb', (gltf) => {
+            tonakaiModel = gltf.scene;
+            tonakaiModel.scale.set(tonakaiParams.scale, tonakaiParams.scale, tonakaiParams.scale);
+            resolve();
+          });
+        })
+      ]);
+    };
+
     function calculateFaceRotation(landmarks) {
       const leftEye = landmarks[33];
       const rightEye = landmarks[263];
@@ -94,19 +94,16 @@
       const dy = rightEye.y - leftEye.y;
       const dz = nose.z - (rightEye.z + leftEye.z) / 2;
 
-      const yaw = Math.atan2(dy, dx); // 左右の回転
-      const pitch = Math.atan2(dz, dx); // 前後の回転
-      const roll = -Math.atan2(dy, dx); // ロール回転
+      const yaw = Math.atan2(dy, dx);
+      const pitch = Math.atan2(dz, dx);
+      const roll = -Math.atan2(dy, dx);
 
       return { yaw, pitch, roll };
     }
 
-    // モデルの位置と回転を適用する関数
     function applyModelTransform(model, position, rotation) {
-      // 位置の設定
+      if (!model) return; // モデルが未定義の場合はスキップ
       model.position.set(position.x, position.y, position.z);
-
-      // 回転の設定
       model.rotation.set(rotation.pitch, rotation.yaw, rotation.roll);
     }
 
@@ -121,7 +118,7 @@
           delegate: "GPU"
         },
         runningMode: "VIDEO",
-        numFaces: 5 // 最大5つの顔を認識
+        numFaces: 5
       });
 
       navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
@@ -136,7 +133,7 @@
       if (!results.faceLandmarks) return;
 
       results.faceLandmarks.forEach((landmarks, index) => {
-        const forehead = landmarks[10]; // 額のランドマーク
+        const forehead = landmarks[10];
         if (!forehead) return;
 
         if (!faceModels[index]) {
@@ -149,18 +146,13 @@
         }
 
         const { model, params } = faceModels[index];
-        
-        // 位置の計算
         const position = {
           x: (forehead.x - 0.5) * 2 + params.positionOffset.x,
           y: -(forehead.y - 0.5) * 2 + params.positionOffset.y,
           z: params.positionOffset.z + forehead.z * 0.1
         };
 
-        // 回転の計算
         const rotation = calculateFaceRotation(landmarks);
-
-        // 位置と回転をモデルに適用
         applyModelTransform(model, position, rotation);
       });
 
@@ -175,9 +167,7 @@
       requestAnimationFrame(predictWebcam);
     }
 
-    // モデル読み込み後にフェイストラッキングを開始
-    Promise.all([loader.loadAsync('hat.glb'), loader.loadAsync('tonakai.glb')])
-      .then(() => setupFaceLandmarker());
+    loadModels().then(setupFaceLandmarker);
   </script>
 </body>
 </html>
