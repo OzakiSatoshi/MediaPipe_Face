@@ -5,7 +5,7 @@
   <meta http-equiv="Cache-control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>Face Landmarker 0.1.35</title>
+  <title>Face Landmarker 0.1.36</title>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three/examples/js/loaders/GLTFLoader.js"></script>
@@ -58,21 +58,32 @@
 
     const loader = new THREE.GLTFLoader();
     let hatModel, tonakaiModel;
-    const faceModels = {};
+
     const hatParams = { scale: 0.4, positionOffset: { x: 0, y: 0.3, z: -1.5 } };
     const tonakaiParams = { scale: 0.5, positionOffset: { x: 0, y: 0.2, z: -1.4 } };
 
-    loader.load('hat.glb', (gltf) => {
-      hatModel = gltf.scene;
-      hatModel.scale.set(hatParams.scale, hatParams.scale, hatParams.scale);
-      hatModel.rotation.set(-Math.PI / 2, 0, Math.PI); // 初期回転補正
-    });
+    let faceLandmarker;
+    const faceModels = {}; // 各顔のモデルを保持
 
-    loader.load('tonakai.glb', (gltf) => {
-      tonakaiModel = gltf.scene;
-      tonakaiModel.scale.set(tonakaiParams.scale, tonakaiParams.scale, tonakaiParams.scale);
-      tonakaiModel.rotation.set(-Math.PI / 2, 0, Math.PI); // 初期回転補正
-    });
+    // モデルの読み込み
+    const loadModels = () => {
+      return Promise.all([
+        new Promise((resolve) => {
+          loader.load('hat.glb', (gltf) => {
+            hatModel = gltf.scene;
+            hatModel.scale.set(hatParams.scale, hatParams.scale, hatParams.scale);
+            resolve();
+          });
+        }),
+        new Promise((resolve) => {
+          loader.load('tonakai.glb', (gltf) => {
+            tonakaiModel = gltf.scene;
+            tonakaiModel.scale.set(tonakaiParams.scale, tonakaiParams.scale, tonakaiParams.scale);
+            resolve();
+          });
+        })
+      ]);
+    };
 
     function calculateFaceRotation(landmarks) {
       const leftEye = landmarks[33];
@@ -83,9 +94,9 @@
       const dy = rightEye.y - leftEye.y;
       const dz = nose.z - (rightEye.z + leftEye.z) / 2;
 
-      const yaw = Math.atan2(dy, dx); // 左右の傾き
-      const pitch = Math.atan2(dz, dx); // 奥行きの傾き
-      const roll = -Math.atan2(dy, dx); // Rollの反転
+      const yaw = Math.atan2(dy, dx);
+      const pitch = Math.atan2(dz, dx);
+      const roll = -Math.atan2(dy, dx);
 
       return { yaw, pitch, roll };
     }
@@ -117,17 +128,13 @@
         .catch(console.error);
     }
 
-    async function predictWebcam() {
-      const results = await faceLandmarker.detectForVideo(videoElement, performance.now());
-      updateModels(results);
-      renderer.render(scene, camera);
-      requestAnimationFrame(predictWebcam);
-    }
-
-    function updateModels(results) {
+    function displayResults(results) {
       if (!results.faceLandmarks) return;
 
       results.faceLandmarks.forEach((landmarks, index) => {
+        const forehead = landmarks[10];
+        if (!forehead) return;
+
         if (!faceModels[index]) {
           const useHat = Math.random() < 0.5;
           faceModels[index] = {
@@ -138,7 +145,6 @@
         }
 
         const { model, params } = faceModels[index];
-        const forehead = landmarks[10];
         const position = {
           x: (forehead.x - 0.5) * 2 + params.positionOffset.x,
           y: -(forehead.y - 0.5) * 2 + params.positionOffset.y,
@@ -148,9 +154,19 @@
         const rotation = calculateFaceRotation(landmarks);
         applyModelTransform(model, position, rotation);
       });
+
+      renderer.render(scene, camera);
     }
 
-    setupFaceLandmarker();
+    async function predictWebcam() {
+      if (!faceLandmarker) return;
+
+      const results = await faceLandmarker.detectForVideo(videoElement, performance.now());
+      displayResults(results);
+      requestAnimationFrame(predictWebcam);
+    }
+
+    loadModels().then(setupFaceLandmarker);
   </script>
 </body>
 </html>
