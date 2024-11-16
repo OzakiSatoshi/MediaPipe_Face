@@ -5,11 +5,11 @@
   <meta http-equiv="Cache-control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>Face Landmarker 0.1.47</title>
+  <title>Face Landmarker 0.1.44c</title>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three/examples/js/loaders/GLTFLoader.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.1.47/wasm/vision_wasm_internal.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm/vision_wasm_internal.js"></script>
   <style>
     body, html {
       margin: 0;
@@ -42,7 +42,7 @@
   </div>
 
   <script type="module">
-    import { FaceLandmarker, FilesetResolver } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.1.47';
+    import { FaceLandmarker, FilesetResolver } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest';
 
     const videoElement = document.getElementById('webcam');
     const canvasElement = document.getElementById('output_canvas');
@@ -57,39 +57,19 @@
     renderer.setPixelRatio(window.devicePixelRatio);
     document.body.appendChild(renderer.domElement);
 
+    const light = new THREE.AmbientLight(0xffffff, 1);
+    scene.add(light);
+
     const loader = new THREE.GLTFLoader();
     const textureLoader = new THREE.TextureLoader();
 
     let hatModel, tonakaiModel;
 
-    const hatParams = {
-      scale: 0.5,
-      positionOffset: { x: 0, y: 0, z: -1.5 },
-      rotationOffset: { pitch: 0, yaw: 0, roll: 0 }
-    };
-
-    const tonakaiParams = {
-      scale: 0.8,
-      positionOffset: { x: 0, y: -0.8, z: -1.4 },
-      rotationOffset: { pitch: 0.1, yaw: 0, roll: 0 }
-    };
+    const hatParams = { scale: 0.5, positionOffset: { x: 0, y: 0, z: -1.5 } };
+    const tonakaiParams = { scale: 0.8, positionOffset: { x: 0, y: -0.8, z: -1.4 } };
 
     let faceLandmarker;
     const faceModels = {};
-
-    // カメラ映像を背景として追加
-    const setupVideoBackground = () => {
-      const videoTexture = new THREE.VideoTexture(videoElement);
-      videoTexture.minFilter = THREE.LinearFilter;
-      videoTexture.magFilter = THREE.LinearFilter;
-
-      const videoMaterial = new THREE.MeshBasicMaterial({ map: videoTexture });
-      const videoGeometry = new THREE.PlaneGeometry(2, 2);
-      const videoMesh = new THREE.Mesh(videoGeometry, videoMaterial);
-      videoMesh.position.z = -5;
-
-      scene.add(videoMesh);
-    };
 
     // 雪エフェクトを作成する関数
     const createSnow = () => {
@@ -105,12 +85,13 @@
 
       particlesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
-      const snowTexture = textureLoader.load('snowflake.png');
+      // 雪を丸くするテクスチャ
+      const snowTexture = textureLoader.load('snowflake.png'); // ローカルのsnowflake.pngを使用
 
       const particlesMaterial = new THREE.PointsMaterial({
-        map: snowTexture,
+        map: snowTexture, // ローカルテクスチャを使用
         color: 0xffffff,
-        size: 0.2,
+        size: 0.2, // 雪のサイズ
         transparent: true,
         opacity: 0.8,
         depthWrite: false
@@ -119,18 +100,21 @@
       const particles = new THREE.Points(particlesGeometry, particlesMaterial);
       scene.add(particles);
 
+      // 雪をアニメーションさせる
       const animateSnow = () => {
         const positions = particles.geometry.attributes.position.array;
         for (let i = 0; i < particleCount; i++) {
-          positions[i * 3 + 1] -= 0.02;
+          positions[i * 3 + 1] -= 0.02; // Y座標を下げる
           if (positions[i * 3 + 1] < -10) {
-            positions[i * 3 + 1] = 10;
+            positions[i * 3 + 1] = 10; // 下まで行ったらリセット
           }
         }
         particles.geometry.attributes.position.needsUpdate = true;
+        renderer.render(scene, camera);
+        requestAnimationFrame(animateSnow);
       };
 
-      return animateSnow;
+      animateSnow();
     };
 
     const loadModels = async () => {
@@ -169,19 +153,15 @@
       return { yaw, pitch, roll };
     }
 
-    function applyModelTransform(model, position, rotation, rotationOffset) {
+    function applyModelTransform(model, position, rotation) {
       if (!model) return;
       model.position.set(position.x, position.y, position.z);
-      model.rotation.set(
-        rotation.pitch + rotationOffset.pitch,
-        rotation.yaw + rotationOffset.yaw,
-        rotation.roll + rotationOffset.roll
-      );
+      model.rotation.set(rotation.pitch, rotation.yaw, rotation.roll);
     }
 
     async function setupFaceLandmarker() {
       const vision = await FilesetResolver.forVisionTasks(
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.1.47/wasm"
+        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
       );
 
       faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
@@ -227,8 +207,10 @@
         };
 
         const rotation = calculateFaceRotation(landmarks);
-        applyModelTransform(model, position, rotation, params.rotationOffset);
+        applyModelTransform(model, position, rotation);
       });
+
+      renderer.render(scene, camera);
     }
 
     async function predictWebcam() {
@@ -252,14 +234,7 @@
 
     loadModels().then(() => {
       setupFaceLandmarker();
-      setupVideoBackground(); // 背景映像をセットアップ
-      const animateSnow = createSnow(); // 雪エフェクトの作成
-      const renderLoop = () => {
-        renderer.render(scene, camera);
-        animateSnow();
-        requestAnimationFrame(renderLoop);
-      };
-      renderLoop();
+      createSnow();
     });
   </script>
 </body>
