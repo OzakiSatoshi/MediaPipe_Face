@@ -5,11 +5,11 @@
   <meta http-equiv="Cache-control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>Face Landmarker 0.1.46</title>
+  <title>Face Landmarker 0.1.47</title>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three/examples/js/loaders/GLTFLoader.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm/vision_wasm_internal.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.1.47/wasm/vision_wasm_internal.js"></script>
   <style>
     body, html {
       margin: 0;
@@ -42,7 +42,7 @@
   </div>
 
   <script type="module">
-    import { FaceLandmarker, FilesetResolver } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest';
+    import { FaceLandmarker, FilesetResolver } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.1.47';
 
     const videoElement = document.getElementById('webcam');
     const canvasElement = document.getElementById('output_canvas');
@@ -56,9 +56,6 @@
     renderer.setSize(window.innerWidth, window.innerHeight);
     renderer.setPixelRatio(window.devicePixelRatio);
     document.body.appendChild(renderer.domElement);
-
-    const light = new THREE.AmbientLight(0xffffff, 1);
-    scene.add(light);
 
     const loader = new THREE.GLTFLoader();
     const textureLoader = new THREE.TextureLoader();
@@ -80,6 +77,20 @@
     let faceLandmarker;
     const faceModels = {};
 
+    // カメラ映像を背景として追加
+    const setupVideoBackground = () => {
+      const videoTexture = new THREE.VideoTexture(videoElement);
+      videoTexture.minFilter = THREE.LinearFilter;
+      videoTexture.magFilter = THREE.LinearFilter;
+
+      const videoMaterial = new THREE.MeshBasicMaterial({ map: videoTexture });
+      const videoGeometry = new THREE.PlaneGeometry(2, 2);
+      const videoMesh = new THREE.Mesh(videoGeometry, videoMaterial);
+      videoMesh.position.z = -5;
+
+      scene.add(videoMesh);
+    };
+
     // 雪エフェクトを作成する関数
     const createSnow = () => {
       const particleCount = 1000;
@@ -94,7 +105,6 @@
 
       particlesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
-      // 雪を丸くするテクスチャ
       const snowTexture = textureLoader.load('snowflake.png');
 
       const particlesMaterial = new THREE.PointsMaterial({
@@ -109,21 +119,18 @@
       const particles = new THREE.Points(particlesGeometry, particlesMaterial);
       scene.add(particles);
 
-      // 雪をアニメーションさせる
       const animateSnow = () => {
         const positions = particles.geometry.attributes.position.array;
         for (let i = 0; i < particleCount; i++) {
-          positions[i * 3 + 1] -= 0.02; // Y座標を下げる
+          positions[i * 3 + 1] -= 0.02;
           if (positions[i * 3 + 1] < -10) {
-            positions[i * 3 + 1] = 10; // 下まで行ったらリセット
+            positions[i * 3 + 1] = 10;
           }
         }
         particles.geometry.attributes.position.needsUpdate = true;
-        renderer.render(scene, camera);
-        requestAnimationFrame(animateSnow);
       };
 
-      animateSnow();
+      return animateSnow;
     };
 
     const loadModels = async () => {
@@ -174,7 +181,7 @@
 
     async function setupFaceLandmarker() {
       const vision = await FilesetResolver.forVisionTasks(
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
+        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@0.1.47/wasm"
       );
 
       faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
@@ -222,8 +229,6 @@
         const rotation = calculateFaceRotation(landmarks);
         applyModelTransform(model, position, rotation, params.rotationOffset);
       });
-
-      renderer.render(scene, camera);
     }
 
     async function predictWebcam() {
@@ -247,7 +252,14 @@
 
     loadModels().then(() => {
       setupFaceLandmarker();
-      createSnow(); // 雪のエフェクトを追加
+      setupVideoBackground(); // 背景映像をセットアップ
+      const animateSnow = createSnow(); // 雪エフェクトの作成
+      const renderLoop = () => {
+        renderer.render(scene, camera);
+        animateSnow();
+        requestAnimationFrame(renderLoop);
+      };
+      renderLoop();
     });
   </script>
 </body>
