@@ -5,7 +5,7 @@
   <meta http-equiv="Cache-control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>Face Landmarker 0.1.44c</title>
+  <title>Face Landmarker 0.1.45</title>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three/examples/js/loaders/GLTFLoader.js"></script>
@@ -60,81 +60,21 @@
     const light = new THREE.AmbientLight(0xffffff, 1);
     scene.add(light);
 
-    const loader = new THREE.GLTFLoader();
     const textureLoader = new THREE.TextureLoader();
 
-    let hatModel, tonakaiModel;
+    let hatPlane;
 
-    const hatParams = { scale: 0.5, positionOffset: { x: 0, y: 0, z: -1.5 } };
-    const tonakaiParams = { scale: 0.8, positionOffset: { x: 0, y: -0.8, z: -1.4 } };
+    const hatParams = { scale: { x: 2, y: 2 }, positionOffset: { x: 0, y: 0, z: -1.5 } };
 
     let faceLandmarker;
     const faceModels = {};
 
-    // 雪エフェクトを作成する関数
-    const createSnow = () => {
-      const particleCount = 1000;
-      const particlesGeometry = new THREE.BufferGeometry();
-      const positions = new Float32Array(particleCount * 3);
-
-      for (let i = 0; i < particleCount; i++) {
-        positions[i * 3] = (Math.random() - 0.5) * 20; // X座標
-        positions[i * 3 + 1] = Math.random() * 20 - 10; // Y座標（上から降る）
-        positions[i * 3 + 2] = (Math.random() - 0.5) * 20; // Z座標
-      }
-
-      particlesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-
-      // 雪を丸くするテクスチャ
-      const snowTexture = textureLoader.load('snowflake.png'); // ローカルのsnowflake.pngを使用
-
-      const particlesMaterial = new THREE.PointsMaterial({
-        map: snowTexture, // ローカルテクスチャを使用
-        color: 0xffffff,
-        size: 0.2, // 雪のサイズ
-        transparent: true,
-        opacity: 0.8,
-        depthWrite: false
-      });
-
-      const particles = new THREE.Points(particlesGeometry, particlesMaterial);
-      scene.add(particles);
-
-      // 雪をアニメーションさせる
-      const animateSnow = () => {
-        const positions = particles.geometry.attributes.position.array;
-        for (let i = 0; i < particleCount; i++) {
-          positions[i * 3 + 1] -= 0.02; // Y座標を下げる
-          if (positions[i * 3 + 1] < -10) {
-            positions[i * 3 + 1] = 10; // 下まで行ったらリセット
-          }
-        }
-        particles.geometry.attributes.position.needsUpdate = true;
-        renderer.render(scene, camera);
-        requestAnimationFrame(animateSnow);
-      };
-
-      animateSnow();
-    };
-
-    const loadModels = async () => {
-      return Promise.all([
-        loader.loadAsync('hat.glb').then((gltf) => {
-          hatModel = gltf.scene;
-          hatModel.scale.set(hatParams.scale, hatParams.scale, hatParams.scale);
-        }),
-        loader.loadAsync('tonakai.glb').then((gltf) => {
-          tonakaiModel = gltf.scene;
-          tonakaiModel.scale.set(tonakaiParams.scale, tonakaiParams.scale, tonakaiParams.scale);
-
-          const texture = textureLoader.load('tonakai_tex.jpg');
-          tonakaiModel.traverse((child) => {
-            if (child.isMesh) {
-              child.material = new THREE.MeshStandardMaterial({ map: texture });
-            }
-          });
-        }),
-      ]);
+    // Hatテクスチャを平面に設定
+    const createHatPlane = () => {
+      const texture = textureLoader.load('hat.png'); // hat.pngを読み込み
+      const material = new THREE.MeshBasicMaterial({ map: texture, transparent: true });
+      const geometry = new THREE.PlaneGeometry(hatParams.scale.x, hatParams.scale.y);
+      hatPlane = new THREE.Mesh(geometry, material);
     };
 
     function calculateFaceRotation(landmarks) {
@@ -191,11 +131,7 @@
         if (!forehead) return;
 
         if (!faceModels[index]) {
-          const useHat = Math.random() < 0.5;
-          faceModels[index] = {
-            model: (useHat ? hatModel : tonakaiModel).clone(),
-            params: useHat ? hatParams : tonakaiParams
-          };
+          faceModels[index] = { model: hatPlane.clone(), params: hatParams };
           scene.add(faceModels[index].model);
         }
 
@@ -232,10 +168,8 @@
       renderer.setPixelRatio(window.devicePixelRatio);
     });
 
-    loadModels().then(() => {
-      setupFaceLandmarker();
-      createSnow();
-    });
+    createHatPlane();
+    setupFaceLandmarker();
   </script>
 </body>
 </html>
