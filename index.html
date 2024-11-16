@@ -5,7 +5,7 @@
   <meta http-equiv="Cache-control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>Face Landmarker 0.1.37j</title>
+  <title>Face Landmarker 0.1.38</title>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three/examples/js/loaders/GLTFLoader.js"></script>
@@ -49,8 +49,11 @@
     const canvasCtx = canvasElement.getContext('2d');
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-    const renderer = new THREE.WebGLRenderer({ alpha: true });
+
+    // 高画質対応: アンチエイリアスとピクセル比設定
+    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
+    renderer.setPixelRatio(window.devicePixelRatio); // デバイスのピクセル比に基づく解像度
     document.body.appendChild(renderer.domElement);
 
     const light = new THREE.AmbientLight(0xffffff, 1);
@@ -64,6 +67,15 @@
 
     let faceLandmarker;
     const faceModels = {};
+
+    // カメラの解像度設定
+    const constraints = {
+      video: {
+        width: { ideal: 1280 }, // 解像度を1280x720に設定
+        height: { ideal: 720 },
+        facingMode: "user"
+      }
+    };
 
     const loadModels = async () => {
       return Promise.all([
@@ -114,7 +126,7 @@
         numFaces: 5
       });
 
-      navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
+      navigator.mediaDevices.getUserMedia(constraints)
         .then((stream) => {
           videoElement.srcObject = stream;
           videoElement.addEventListener("loadeddata", predictWebcam);
