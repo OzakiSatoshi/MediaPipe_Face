@@ -5,7 +5,7 @@
   <meta http-equiv="Cache-control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>Face Landmarker 0.1.44b</title>
+  <title>Face Landmarker 0.1.44c</title>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three/examples/js/loaders/GLTFLoader.js"></script>
@@ -86,15 +86,15 @@
       particlesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
 
       // 雪を丸くするテクスチャ
-      const snowTexture = textureLoader.load('https://threejs.org/examples/textures/sprites/snowflake1.png');
+      const snowTexture = textureLoader.load('snowflake.png'); // ローカルのsnowflake.pngを使用
 
       const particlesMaterial = new THREE.PointsMaterial({
-        map: snowTexture, // 丸いテクスチャを使用
+        map: snowTexture, // ローカルテクスチャを使用
         color: 0xffffff,
         size: 0.2, // 雪のサイズ
         transparent: true,
         opacity: 0.8,
-        depthWrite: false // 他のオブジェクトの影響を防ぐ
+        depthWrite: false
       });
 
       const particles = new THREE.Points(particlesGeometry, particlesMaterial);
