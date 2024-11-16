@@ -5,7 +5,7 @@
   <meta http-equiv="Cache-control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>Face Landmarker 0.1.39</title>
+  <title>Face Landmarker 0.1.40</title>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three/examples/js/loaders/GLTFLoader.js"></script>
@@ -50,10 +50,9 @@
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
 
-    // 高画質対応: アンチエイリアスとピクセル比設定
     const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
     renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(window.devicePixelRatio); // デバイスのピクセル比に基づく解像度
+    renderer.setPixelRatio(window.devicePixelRatio);
     document.body.appendChild(renderer.domElement);
 
     const light = new THREE.AmbientLight(0xffffff, 1);
@@ -128,6 +127,8 @@
     function displayResults(results) {
       if (!results.faceLandmarks) return;
 
+      const aspectRatio = videoElement.videoWidth / videoElement.videoHeight;
+
       results.faceLandmarks.forEach((landmarks, index) => {
         const forehead = landmarks[10];
         if (!forehead) return;
@@ -143,7 +144,7 @@
 
         const { model, params } = faceModels[index];
         const position = {
-          x: (forehead.x - 0.5) * 2 + params.positionOffset.x,
+          x: (forehead.x - 0.5) * 2 * aspectRatio + params.positionOffset.x,
           y: -(forehead.y - 0.5) * 2 + params.positionOffset.y,
           z: params.positionOffset.z + forehead.z * 0.1
         };
@@ -163,7 +164,6 @@
       requestAnimationFrame(predictWebcam);
     }
 
-    // 画面リサイズ時の処理
     window.addEventListener("resize", () => {
       const width = window.innerWidth;
       const height = window.innerHeight;
