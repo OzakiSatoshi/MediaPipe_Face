@@ -5,7 +5,7 @@
   <meta http-equiv="Cache-control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>Face Landmarker 0.1.42</title>
+  <title>Face Landmarker 0.1.43</title>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three/examples/js/loaders/GLTFLoader.js"></script>
@@ -48,7 +48,7 @@
     const canvasElement = document.getElementById('output_canvas');
     const canvasCtx = canvasElement.getContext('2d');
 
-    const fov = 90; // 視野角設定
+    const fov = 90;
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(fov, window.innerWidth / window.innerHeight, 0.1, 1000);
 
@@ -71,7 +71,47 @@
     let faceLandmarker;
     const faceModels = {};
 
-    // モデルの読み込み
+    // 雪エフェクトを作成する関数
+    const createSnow = () => {
+      const particleCount = 1000;
+      const particlesGeometry = new THREE.BufferGeometry();
+      const positions = new Float32Array(particleCount * 3);
+
+      for (let i = 0; i < particleCount; i++) {
+        positions[i * 3] = (Math.random() - 0.5) * 20; // X座標
+        positions[i * 3 + 1] = Math.random() * 20 - 10; // Y座標（上から降る）
+        positions[i * 3 + 2] = (Math.random() - 0.5) * 20; // Z座標
+      }
+
+      particlesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
+
+      const particlesMaterial = new THREE.PointsMaterial({
+        color: 0xffffff,
+        size: 0.1, // 雪粒子のサイズ
+        transparent: true,
+        opacity: 0.8
+      });
+
+      const particles = new THREE.Points(particlesGeometry, particlesMaterial);
+      scene.add(particles);
+
+      // 雪をアニメーションさせる
+      const animateSnow = () => {
+        const positions = particles.geometry.attributes.position.array;
+        for (let i = 0; i < particleCount; i++) {
+          positions[i * 3 + 1] -= 0.02; // Y座標を下げる
+          if (positions[i * 3 + 1] < -10) {
+            positions[i * 3 + 1] = 10; // 下まで行ったらリセット
+          }
+        }
+        particles.geometry.attributes.position.needsUpdate = true;
+        renderer.render(scene, camera);
+        requestAnimationFrame(animateSnow);
+      };
+
+      animateSnow();
+    };
+
     const loadModels = async () => {
       return Promise.all([
         loader.loadAsync('hat.glb').then((gltf) => {
@@ -82,8 +122,7 @@
           tonakaiModel = gltf.scene;
           tonakaiModel.scale.set(tonakaiParams.scale, tonakaiParams.scale, tonakaiParams.scale);
 
-          // テクスチャの適用
-          const texture = textureLoader.load('tonakai_tex.jpg'); // テクスチャを読み込む
+          const texture = textureLoader.load('tonakai_tex.jpg');
           tonakaiModel.traverse((child) => {
             if (child.isMesh) {
               child.material = new THREE.MeshStandardMaterial({ map: texture });
@@ -188,7 +227,10 @@
       renderer.setPixelRatio(window.devicePixelRatio);
     });
 
-    loadModels().then(setupFaceLandmarker);
+    loadModels().then(() => {
+      setupFaceLandmarker();
+      createSnow(); // 雪エフェクトを追加
+    });
   </script>
 </body>
 </html>
