@@ -5,7 +5,7 @@
   <meta http-equiv="Cache-control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>Face Landmarker 0.1.29</title>
+  <title>Face Landmarker 0.1.29b</title>
 
   <link href="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.css" rel="stylesheet">
   <script src="https://unpkg.com/material-components-web@latest/dist/material-components-web.min.js"></script>
@@ -76,13 +76,13 @@
     // モデルのパラメータ設定
     const hatParams = {
       scale: 0.4,  // hat.glbのスケール
-      positionOffset: { x: -2, y: 0.3, z: -1.5 },  // hat.glbの位置オフセット
+      positionOffset: { x: 0, y: 0.2, z: -1.5 },  // hat.glbの位置オフセット xは左右 yは上下 zは奥行
       rotationOffset: { x: 0, y: 0, z: 0 }  // hat.glbの回転オフセット（ラジアン）
     };
 
     const tonakaiParams = {
       scale: 0.5,  // tonakai.glbのスケール
-      positionOffset: { x: -2, y: 0.2, z: -1.5 },  // tonakai.glbの位置オフセット
+      positionOffset: { x: 0, y: 1, z: -1.5 },  // tonakai.glbの位置オフセット
       rotationOffset: { x: 0, y: 0, z: 0 }  // tonakai.glbの回転オフセット（ラジアン）
     };
 
