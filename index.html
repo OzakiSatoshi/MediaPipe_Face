@@ -5,7 +5,7 @@
   <meta http-equiv="Cache-control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>Face Landmarker 0.1.37i</title>
+  <title>Face Landmarker 0.1.37j</title>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three/examples/js/loaders/GLTFLoader.js"></script>
@@ -59,29 +59,22 @@
     const loader = new THREE.GLTFLoader();
     let hatModel, tonakaiModel;
 
-    const hatParams = { scale: 0.5, positionOffset: { x: 0, y: 0, z: -1.5 } }; // xは左右 yは上下 zは奥行
-    const tonakaiParams = { scale: 0.8, positionOffset: { x: 0, y: -0.8, z: -1.4 } }; // xは左右 yは上下 zは奥行
+    const hatParams = { scale: 0.5, positionOffset: { x: 0, y: 0, z: -1.5 } };
+    const tonakaiParams = { scale: 0.8, positionOffset: { x: 0, y: -0.8, z: -1.4 } };
 
     let faceLandmarker;
-    const faceModels = {}; // 各顔のモデルを保持
+    const faceModels = {};
 
-    // モデルの読み込み
-    const loadModels = () => {
+    const loadModels = async () => {
       return Promise.all([
-        new Promise((resolve) => {
-          loader.load('hat.glb', (gltf) => {
-            hatModel = gltf.scene;
-            hatModel.scale.set(hatParams.scale, hatParams.scale, hatParams.scale);
-            resolve();
-          });
+        loader.loadAsync('hat.glb').then((gltf) => {
+          hatModel = gltf.scene;
+          hatModel.scale.set(hatParams.scale, hatParams.scale, hatParams.scale);
         }),
-        new Promise((resolve) => {
-          loader.load('tonakai.glb', (gltf) => {
-            tonakaiModel = gltf.scene;
-            tonakaiModel.scale.set(tonakaiParams.scale, tonakaiParams.scale, tonakaiParams.scale);
-            resolve();
-          });
-        })
+        loader.loadAsync('tonakai.glb').then((gltf) => {
+          tonakaiModel = gltf.scene;
+          tonakaiModel.scale.set(tonakaiParams.scale, tonakaiParams.scale, tonakaiParams.scale);
+        }),
       ]);
     };
 
@@ -102,7 +95,7 @@
     }
 
     function applyModelTransform(model, position, rotation) {
-      if (!model) return; // モデルが未定義の場合はスキップ
+      if (!model) return;
       model.position.set(position.x, position.y, position.z);
       model.rotation.set(rotation.pitch, rotation.yaw, rotation.roll);
     }
