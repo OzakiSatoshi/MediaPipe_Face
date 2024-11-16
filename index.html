@@ -5,8 +5,7 @@
   <meta http-equiv="Cache-control" content="no-cache, no-store, must-revalidate">
   <meta http-equiv="Pragma" content="no-cache">
   <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>Face Landmarker 0.1.41</title>
-  
+  <title>Face Landmarker 0.1.42</title>
 
   <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/three/examples/js/loaders/GLTFLoader.js"></script>
@@ -48,9 +47,8 @@
     const videoElement = document.getElementById('webcam');
     const canvasElement = document.getElementById('output_canvas');
     const canvasCtx = canvasElement.getContext('2d');
-    
-    // カメラのFOVを設定（視野角を90度に設定）
-    const fov = 90; // 視野角を調整（広げたい場合はこの値を増加）
+
+    const fov = 90; // 視野角設定
     const scene = new THREE.Scene();
     const camera = new THREE.PerspectiveCamera(fov, window.innerWidth / window.innerHeight, 0.1, 1000);
 
@@ -63,6 +61,8 @@
     scene.add(light);
 
     const loader = new THREE.GLTFLoader();
+    const textureLoader = new THREE.TextureLoader();
+
     let hatModel, tonakaiModel;
 
     const hatParams = { scale: 0.5, positionOffset: { x: 0, y: 0, z: -1.5 } };
@@ -71,6 +71,7 @@
     let faceLandmarker;
     const faceModels = {};
 
+    // モデルの読み込み
     const loadModels = async () => {
       return Promise.all([
         loader.loadAsync('hat.glb').then((gltf) => {
@@ -80,6 +81,14 @@
         loader.loadAsync('tonakai.glb').then((gltf) => {
           tonakaiModel = gltf.scene;
           tonakaiModel.scale.set(tonakaiParams.scale, tonakaiParams.scale, tonakaiParams.scale);
+
+          // テクスチャの適用
+          const texture = textureLoader.load('tonakai_tex.jpg'); // テクスチャを読み込む
+          tonakaiModel.traverse((child) => {
+            if (child.isMesh) {
+              child.material = new THREE.MeshStandardMaterial({ map: texture });
+            }
+          });
         }),
       ]);
     };
