@@ -1,241 +1,116 @@
 <!DOCTYPE html>
-<html lang="ja">
+<html lang="en">
 <head>
   <meta charset="utf-8">
-  <meta http-equiv="Cache-control" content="no-cache, no-store, must-revalidate">
-  <meta http-equiv="Pragma" content="no-cache">
-  <meta name="viewport" content="width=device-width, initial-scale=1, user-scalable=no">
-  <title>Face Landmarker 0.1.44c</title>
-
-  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/three/examples/js/loaders/GLTFLoader.js"></script>
-  <script src="https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm/vision_wasm_internal.js"></script>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>JIET X'mas party 2024</title>
   <style>
     body, html {
       margin: 0;
       padding: 0;
       overflow: hidden;
       height: 100%;
-      display: flex;
-      justify-content: center;
-      align-items: center;
+      background-color: #000;
     }
-    #liveView {
-      width: 100vw;
-      height: 100vh;
-      position: relative;
-    }
-    video, canvas {
+    #webcam {
+      position: fixed;
+      top: 0;
+      left: 0;
       width: 100%;
       height: 100%;
       object-fit: cover;
-      position: absolute;
+      transform: scaleX(-1);
+    }
+    canvas {
+      position: fixed;
       top: 0;
       left: 0;
+      width: 100%;
+      height: 100%;
+      pointer-events: none;
+    }
+    .title {
+      position: fixed;
+      top: 20px;
+      left: 50%;
+      transform: translateX(-50%);
+      color: #fff;
+      font-size: 24px;
+      font-weight: bold;
+      text-shadow: 2px 2px 4px rgba(0,0,0,0.5);
+      z-index: 100;
+      font-family: 'Arial', sans-serif;
+    }
+    .capture-button {
+      position: fixed;
+      bottom: 30px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 255, 255, 0.8);
+      border: none;
+      border-radius: 50%;
+      width: 60px;
+      height: 60px;
+      cursor: pointer;
+      z-index: 100;
+      padding: 0;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+    .capture-button img {
+      width: 30px;
+      height: 30px;
+    }
+    .share-menu {
+      position: fixed;
+      bottom: 100px;
+      left: 50%;
+      transform: translateX(-50%);
+      background: rgba(255, 255, 255, 0.9);
+      border-radius: 12px;
+      padding: 10px;
+      display: none;
+      z-index: 101;
+    }
+    .share-menu.visible {
+      display: flex;
+      gap: 15px;
+    }
+    .share-button {
+      background: none;
+      border: none;
+      cursor: pointer;
+      padding: 8px;
+      border-radius: 8px;
+      transition: background-color 0.3s;
+    }
+    .share-button:hover {
+      background-color: rgba(0, 0, 0, 0.1);
+    }
+    .share-button img {
+      width: 24px;
+      height: 24px;
     }
   </style>
 </head>
 <body>
-  <div id="liveView" class="videoView">
-    <video id="webcam" autoplay playsinline></video>
-    <canvas class="output_canvas" id="output_canvas"></canvas>
+  <div class="title">JIET X'mas party 2024</div>
+  <video id="webcam" autoplay playsinline></video>
+  <button class="capture-button">
+    <img src="/shutter.png" alt="Capture">
+  </button>
+  <div class="share-menu">
+    <button class="share-button" data-platform="x">
+      <img src="/x.png" alt="Share on X">
+    </button>
+    <button class="share-button" data-platform="facebook">
+      <img src="/facebook.png" alt="Share on Facebook">
+    </button>
+    <button class="share-button" data-platform="download">
+      <img src="/download.png" alt="Download">
+    </button>
   </div>
-
-  <script type="module">
-    import { FaceLandmarker, FilesetResolver } from 'https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest';
-
-    const videoElement = document.getElementById('webcam');
-    const canvasElement = document.getElementById('output_canvas');
-    const canvasCtx = canvasElement.getContext('2d');
-
-    const fov = 90;
-    const scene = new THREE.Scene();
-    const camera = new THREE.PerspectiveCamera(fov, window.innerWidth / window.innerHeight, 0.1, 1000);
-
-    const renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
-    renderer.setSize(window.innerWidth, window.innerHeight);
-    renderer.setPixelRatio(window.devicePixelRatio);
-    document.body.appendChild(renderer.domElement);
-
-    const light = new THREE.AmbientLight(0xffffff, 1);
-    scene.add(light);
-
-    const loader = new THREE.GLTFLoader();
-    const textureLoader = new THREE.TextureLoader();
-
-    let hatModel, tonakaiModel;
-
-    const hatParams = { scale: 0.5, positionOffset: { x: 0, y: 0, z: -1.5 } };
-    const tonakaiParams = { scale: 0.8, positionOffset: { x: 0, y: -0.8, z: -1.4 } };
-
-    let faceLandmarker;
-    const faceModels = {};
-
-    // 雪エフェクトを作成する関数
-    const createSnow = () => {
-      const particleCount = 1000;
-      const particlesGeometry = new THREE.BufferGeometry();
-      const positions = new Float32Array(particleCount * 3);
-
-      for (let i = 0; i < particleCount; i++) {
-        positions[i * 3] = (Math.random() - 0.5) * 20; // X座標
-        positions[i * 3 + 1] = Math.random() * 20 - 10; // Y座標（上から降る）
-        positions[i * 3 + 2] = (Math.random() - 0.5) * 20; // Z座標
-      }
-
-      particlesGeometry.setAttribute('position', new THREE.BufferAttribute(positions, 3));
-
-      // 雪を丸くするテクスチャ
-      const snowTexture = textureLoader.load('snowflake.png'); // ローカルのsnowflake.pngを使用
-
-      const particlesMaterial = new THREE.PointsMaterial({
-        map: snowTexture, // ローカルテクスチャを使用
-        color: 0xffffff,
-        size: 0.2, // 雪のサイズ
-        transparent: true,
-        opacity: 0.8,
-        depthWrite: false
-      });
-
-      const particles = new THREE.Points(particlesGeometry, particlesMaterial);
-      scene.add(particles);
-
-      // 雪をアニメーションさせる
-      const animateSnow = () => {
-        const positions = particles.geometry.attributes.position.array;
-        for (let i = 0; i < particleCount; i++) {
-          positions[i * 3 + 1] -= 0.02; // Y座標を下げる
-          if (positions[i * 3 + 1] < -10) {
-            positions[i * 3 + 1] = 10; // 下まで行ったらリセット
-          }
-        }
-        particles.geometry.attributes.position.needsUpdate = true;
-        renderer.render(scene, camera);
-        requestAnimationFrame(animateSnow);
-      };
-
-      animateSnow();
-    };
-
-    const loadModels = async () => {
-      return Promise.all([
-        loader.loadAsync('hat.glb').then((gltf) => {
-          hatModel = gltf.scene;
-          hatModel.scale.set(hatParams.scale, hatParams.scale, hatParams.scale);
-        }),
-        loader.loadAsync('tonakai.glb').then((gltf) => {
-          tonakaiModel = gltf.scene;
-          tonakaiModel.scale.set(tonakaiParams.scale, tonakaiParams.scale, tonakaiParams.scale);
-
-          const texture = textureLoader.load('tonakai_tex.jpg');
-          tonakaiModel.traverse((child) => {
-            if (child.isMesh) {
-              child.material = new THREE.MeshStandardMaterial({ map: texture });
-            }
-          });
-        }),
-      ]);
-    };
-
-    function calculateFaceRotation(landmarks) {
-      const leftEye = landmarks[33];
-      const rightEye = landmarks[263];
-      const nose = landmarks[1];
-
-      const dx = rightEye.x - leftEye.x;
-      const dy = rightEye.y - leftEye.y;
-      const dz = nose.z - (rightEye.z + leftEye.z) / 2;
-
-      const yaw = Math.atan2(dy, dx);
-      const pitch = Math.atan2(dz, dx);
-      const roll = -Math.atan2(dy, dx);
-
-      return { yaw, pitch, roll };
-    }
-
-    function applyModelTransform(model, position, rotation) {
-      if (!model) return;
-      model.position.set(position.x, position.y, position.z);
-      model.rotation.set(rotation.pitch, rotation.yaw, rotation.roll);
-    }
-
-    async function setupFaceLandmarker() {
-      const vision = await FilesetResolver.forVisionTasks(
-        "https://cdn.jsdelivr.net/npm/@mediapipe/tasks-vision@latest/wasm"
-      );
-
-      faceLandmarker = await FaceLandmarker.createFromOptions(vision, {
-        baseOptions: {
-          modelAssetPath: "https://storage.googleapis.com/mediapipe-models/face_landmarker/face_landmarker/float16/1/face_landmarker.task",
-          delegate: "GPU"
-        },
-        runningMode: "VIDEO",
-        numFaces: 5
-      });
-
-      navigator.mediaDevices.getUserMedia({ video: { facingMode: "user" } })
-        .then((stream) => {
-          videoElement.srcObject = stream;
-          videoElement.addEventListener("loadeddata", predictWebcam);
-        })
-        .catch(console.error);
-    }
-
-    function displayResults(results) {
-      if (!results.faceLandmarks) return;
-
-      const aspectRatio = videoElement.videoWidth / videoElement.videoHeight;
-
-      results.faceLandmarks.forEach((landmarks, index) => {
-        const forehead = landmarks[10];
-        if (!forehead) return;
-
-        if (!faceModels[index]) {
-          const useHat = Math.random() < 0.5;
-          faceModels[index] = {
-            model: (useHat ? hatModel : tonakaiModel).clone(),
-            params: useHat ? hatParams : tonakaiParams
-          };
-          scene.add(faceModels[index].model);
-        }
-
-        const { model, params } = faceModels[index];
-        const position = {
-          x: (forehead.x - 0.5) * 2 * aspectRatio + params.positionOffset.x,
-          y: -(forehead.y - 0.5) * 2 + params.positionOffset.y,
-          z: params.positionOffset.z + forehead.z * 0.1
-        };
-
-        const rotation = calculateFaceRotation(landmarks);
-        applyModelTransform(model, position, rotation);
-      });
-
-      renderer.render(scene, camera);
-    }
-
-    async function predictWebcam() {
-      if (!faceLandmarker) return;
-
-      const results = await faceLandmarker.detectForVideo(videoElement, performance.now());
-      displayResults(results);
-      requestAnimationFrame(predictWebcam);
-    }
-
-    window.addEventListener("resize", () => {
-      const width = window.innerWidth;
-      const height = window.innerHeight;
-
-      camera.aspect = width / height;
-      camera.updateProjectionMatrix();
-
-      renderer.setSize(width, height);
-      renderer.setPixelRatio(window.devicePixelRatio);
-    });
-
-    loadModels().then(() => {
-      setupFaceLandmarker();
-      createSnow();
-    });
-  </script>
+  <script type="module" src="/src/main.js"></script>
 </body>
 </html>
