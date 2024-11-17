@@ -17,15 +17,20 @@ export class App {
       hat: { scale: 0.5, positionOffset: { x: 0, y: 0.1, z: -0.5 } },
       tonakai: { scale: 0.8, positionOffset: { x: 0, y: -0.2, z: -0.5 } }
     };
+    this.modelsLoaded = false;
   }
 
   async initialize() {
-    await this.setupWebcam();
-    await this.faceDetector.initialize();
-    await this.loadModels();
-    this.snowEffect = new SnowEffect(this.sceneManager.scene);
-    this.setupCaptureButton();
-    this.animate();
+    try {
+      await this.setupWebcam();
+      await this.faceDetector.initialize();
+      await this.loadModels();
+      this.snowEffect = new SnowEffect(this.sceneManager.scene);
+      this.setupCaptureButton();
+      this.animate();
+    } catch (error) {
+      console.error('Initialization error:', error);
+    }
   }
 
   setupCaptureButton() {
@@ -36,7 +41,6 @@ export class App {
   }
 
   async captureImage() {
-    // 現在のシーンを再レンダリング
     this.sceneManager.render();
 
     const canvas = document.createElement('canvas');
@@ -44,18 +48,15 @@ export class App {
     canvas.width = window.innerWidth;
     canvas.height = window.innerHeight;
 
-    // 背景のビデオを描画（ミラー処理）
     ctx.save();
     ctx.scale(-1, 1);
     ctx.drawImage(this.videoElement, -canvas.width, 0, canvas.width, canvas.height);
     ctx.restore();
 
-    // Three.jsシーンを合成（アルファブレンディングを調整）
     const threeCanvas = this.sceneManager.renderer.domElement;
     ctx.globalCompositeOperation = 'source-over';
     ctx.drawImage(threeCanvas, 0, 0);
 
-    // タイトルテキストを描画
     ctx.font = 'bold 24px Arial';
     ctx.fillStyle = 'white';
     ctx.textAlign = 'center';
@@ -65,15 +66,23 @@ export class App {
     ctx.shadowOffsetY = 2;
     ctx.fillText('JIET X\'mas party 2024', canvas.width / 2, 40);
 
-    // 画像データを生成してシェアメニューを表示
     const imageData = canvas.toDataURL('image/png');
     this.shareManager.showShareMenu(imageData);
   }
 
   async setupWebcam() {
     try {
-      const stream = await navigator.mediaDevices.getUserMedia({ video: true });
+      const constraints = {
+        video: {
+          width: { ideal: 1280 },
+          height: { ideal: 720 },
+          facingMode: "user"
+        }
+      };
+      
+      const stream = await navigator.mediaDevices.getUserMedia(constraints);
       this.videoElement.srcObject = stream;
+      
       return new Promise((resolve) => {
         this.videoElement.onloadedmetadata = () => {
           this.videoElement.play();
@@ -82,39 +91,62 @@ export class App {
       });
     } catch (error) {
       console.error('Error accessing webcam:', error);
+      throw error;
     }
   }
 
   async loadModels() {
     const loader = new GLTFLoader();
-    const loadModel = (url) => new Promise((resolve) => loader.load(url, resolve));
-
-    const [hatGltf, tonakaiGltf] = await Promise.all([
-      loadModel('/hat.glb'),
-      loadModel('/tonakai.glb')
-    ]);
-
-    this.models.hat = hatGltf.scene;
-    this.models.tonakai = tonakaiGltf.scene;
-
-    // モデルのマテリアル設定を調整
-    Object.values(this.models).forEach(model => {
-      model.rotation.set(Math.PI / 2, Math.PI, 0);
-      model.traverse((child) => {
-        if (child.isMesh) {
-          // 透明度の設定を削除し、完全な不透明度に
-          child.material.transparent = false;
-          child.material.opacity = 1.0;
-          child.material.side = THREE.DoubleSide;
-          // デプステストを有効に
-          child.material.depthTest = true;
-          child.material.depthWrite = true;
-        }
+    const loadModel = (url) => {
+      return new Promise((resolve, reject) => {
+        loader.load(
+          url,
+          (gltf) => {
+            gltf.scene.traverse((child) => {
+              if (child.isMesh) {
+                child.material.transparent = true;
+                child.material.opacity = 1.0;
+                child.material.side = THREE.DoubleSide;
+                child.material.depthTest = true;
+                child.material.depthWrite = true;
+                if (child.material.map) {
+                  child.material.map.encoding = THREE.sRGBEncoding;
+                }
+              }
+            });
+            resolve(gltf);
+          },
+          undefined,
+          reject
+        );
       });
-    });
+    };
+
+    try {
+      const [hatGltf, tonakaiGltf] = await Promise.all([
+        loadModel('https://cdn.jsdelivr.net/gh/OzakiSatoshi/MediaPipe_Face@c91e2a2a16704610d72d8d4d81739855d869565a/hat.glb'),
+        loadModel('https://cdn.jsdelivr.net/gh/OzakiSatoshi/MediaPipe_Face@c91e2a2a16704610d72d8d4d81739855d869565a/tonakai.glb')
+      ]);
+
+      this.models.hat = hatGltf.scene.clone();
+      this.models.tonakai = tonakaiGltf.scene.clone();
+
+      Object.entries(this.models).forEach(([key, model]) => {
+        const scale = this.modelParams[key].scale;
+        model.scale.set(scale, scale, scale);
+        model.rotation.set(Math.PI / 2, Math.PI, 0);
+      });
+
+      this.modelsLoaded = true;
+    } catch (error) {
+      console.error('Error loading models:', error);
+      this.modelsLoaded = false;
+    }
   }
 
   updateModelTransform(model, position, rotation) {
+    if (!model) return;
+    
     model.position.set(position.x, position.y, position.z);
     model.rotation.order = 'YXZ';
     model.rotation.set(
@@ -125,6 +157,8 @@ export class App {
   }
 
   async handleFaceDetection() {
+    if (!this.modelsLoaded) return;
+
     const results = await this.faceDetector.detectFace(this.videoElement);
     if (!results?.faceLandmarks?.length) return;
 
@@ -143,7 +177,6 @@ export class App {
     const { model, params } = this.faceModels[0];
     const rotation = this.faceDetector.calculateFaceRotation(landmarks);
 
-    // スケーリングファクターを調整して位置合わせを改善
     const scaleFactor = 2.0;
     const position = {
       x: (forehead.x - 0.5) * scaleFactor + params.positionOffset.x,
@@ -161,9 +194,11 @@ export class App {
   }
 
   animate = () => {
+    if (this.videoElement.readyState === this.videoElement.HAVE_ENOUGH_DATA) {
+      this.handleFaceDetection();
+      if (this.snowEffect) this.snowEffect.animate();
+      this.sceneManager.render();
+    }
     requestAnimationFrame(this.animate);
-    this.handleFaceDetection();
-    if (this.snowEffect) this.snowEffect.animate();
-    this.sceneManager.render();
   }
 }

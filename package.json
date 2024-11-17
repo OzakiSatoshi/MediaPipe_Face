@@ -1,7 +1,7 @@
 {
   "name": "mediapipe-face",
   "private": true,
-  "version": "1.0.0",
+  "version": "0.0.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -10,7 +10,8 @@
   },
   "dependencies": {
     "@mediapipe/tasks-vision": "^0.10.3",
-    "three": "^0.160.0"
+    "three": "^0.158.0",
+    "@types/three": "^0.158.0"
   },
   "devDependencies": {
     "vite": "^5.0.0"
